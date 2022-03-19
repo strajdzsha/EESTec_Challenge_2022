@@ -1,0 +1,55 @@
+Finished fitting
+Train set accuracy:  0.93691
+Test set accuracy:  0.89278
+Validation set accuracy:  0.75556
+This was well number: 1 and depth: 6
+Finished fitting
+Train set accuracy:  0.92706
+Test set accuracy:  0.89301
+Validation set accuracy:  0.0
+This was well number: 2 and depth: 6
+Finished fitting
+Train set accuracy:  0.93757
+Test set accuracy:  0.89059
+Validation set accuracy:  0.57471
+This was well number: 3 and depth: 6
+Finished fitting
+Train set accuracy:  0.92327
+Test set accuracy:  0.89474
+Validation set accuracy:  0.59429
+This was well number: 4 and depth: 6
+Finished fitting
+Train set accuracy:  0.91254
+Test set accuracy:  0.87556
+Validation set accuracy:  0.51541
+This was well number: 5 and depth: 6
+Finished fitting
+Train set accuracy:  0.92055
+Test set accuracy:  0.92494
+Validation set accuracy:  0.47041
+This was well number: 6 and depth: 6
+Finished fitting
+Train set accuracy:  0.92608
+Test set accuracy:  0.89548
+Validation set accuracy:  0.67078
+This was well number: 7 and depth: 6
+Finished fitting
+Train set accuracy:  0.94255
+Test set accuracy:  0.91051
+Validation set accuracy:  0.70132
+This was well number: 8 and depth: 6
+Finished fitting
+Train set accuracy:  0.93431
+Test set accuracy:  0.89663
+Validation set accuracy:  0.22002
+This was well number: 9 and depth: 6
+Finished fitting
+Train set accuracy:  0.90682
+Test set accuracy:  0.86486
+Validation set accuracy:  0.59004
+This was well number: 10 and depth: 6
+Finished fitting
+Train set accuracy:  0.9439
+Test set accuracy:  0.89337
+Validation set accuracy:  0.72512
+This was well number: 11 and depth: 6
