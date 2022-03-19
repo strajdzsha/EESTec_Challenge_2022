@@ -1,98 +1,119 @@
+from sklearn.ensemble import GradientBoostingClassifier
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 from sklearn.model_selection import train_test_split
 from sklearn import preprocessing
 from sklearn import metrics
+from sklearn.cluster import KMeans
+from sklearn.model_selection import cross_val_score
 from sklearn.metrics import classification_report, confusion_matrix
 from sklearn import tree
 from imblearn.over_sampling import RandomOverSampler
+from sklearn.model_selection import cross_val_score
 
 import warnings
+
+
+def addClusters(df):
+    wells = df['WELL'].unique()
+    X = []
+
+    for i, well in enumerate(wells):
+        well_df = (df.loc[df['WELL'] == well])
+        X.append([well_df['X'].values[0], well_df['Y'].values[0]])
+    X = np.asarray(X)
+
+    min_max_scaler = preprocessing.MinMaxScaler()
+    X_tran = preprocessing.StandardScaler().fit_transform(X)
+
+    clusterNum = 3
+    k_means = KMeans(init="k-means++", n_clusters=clusterNum, n_init=12)
+    k_means.fit(X_tran)
+    k_means_labels = k_means.labels_
+    k_means_cluster_centers = k_means.cluster_centers_
+
+    df['POSITION_CLUSTER'] = np.nan
+
+    for i, well in enumerate(wells):
+        df.loc[(df['WELL'] == well), 'POSITION_CLUSTER'] = k_means_labels[i]
+        # df[['POSITION_CLUSTER', well]] = k_means_labels[i]
+
+    return df
+
+
 warnings.filterwarnings("ignore")
-
-
-def show_conf_matrix(y_test, y_pred, classes):
-    # Calculate confusion matrix
-    conf = confusion_matrix(y_test, y_pred)
-
-    plt.figure(figsize=(12, 12))
-    sns.set(font_scale=1)
-    sns.heatmap(conf, annot=True, annot_kws={"size": 16}, fmt="d", linewidths=.5, cmap="YlGnBu", xticklabels=classes,
-                yticklabels=classes)
-    plt.xlabel('Predicted value')
-    plt.ylabel('True value')
-
-    plt.show()
-
-
-def plotDecisionTree():
-    fig = plt.figure(figsize=(100, 100))
-    _ = tree.plot_tree(clf, max_depth=3, feature_names=['X', 'Y', 'MD', 'GR', 'RT', 'DEN', 'CN', 'D_Env'],
-                       filled=True)
-    fig.savefig("decision_tree.png")
-
 
 df = pd.read_csv('Train-dataset.csv')
 
-wells = df['WELL'].unique()
 
-well_data = df[df['WELL'] == wells[10]]
-
+encodings = df.groupby('DEPOSITIONAL_ENVIRONMENT')['LITH_CODE'].mean().reset_index()
+list_encodings = encodings['LITH_CODE'].values
 MAPPING = {
-    'Continental': 1,
-    'Transitional': 2,
-    'Marine': 3,
+    'Continental': list_encodings[0],
+    'Transitional': list_encodings[1],
+    'Marine': list_encodings[2],
 }
+
+#ata = df.merge(encodings, how='left', on='DEPOSITIONAL_ENVIRONMENT')
+#df.drop('DEPOSITIONAL_ENVIRONMENT', axis=1, inplace=True)
 
 df['D_Env'] = df['DEPOSITIONAL_ENVIRONMENT'].apply(lambda x: MAPPING[x])
 
-Feature = df[['X', 'Y', 'MD', 'GR', 'RT', 'DEN', 'CN', 'D_Env']]
-X = Feature
-X= preprocessing.StandardScaler().fit(X).transform(X)
-Y = df['LITH_CODE']
-print(Y.value_counts())
+df = addClusters(df)
+encodings = df.groupby('POSITION_CLUSTER')['LITH_CODE'].mean().reset_index()
+list_encodings = encodings['LITH_CODE'].values
+MAPPING = {
+    0: list_encodings[0],
+    1: list_encodings[1],
+    2: list_encodings[2],
+}
 
-oversample = RandomOverSampler(sampling_strategy='not majority')
-X, Y = oversample.fit_resample(X, Y)
-print(Y.value_counts())
-
-X_train, X_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=7)
-
-print ('Train set:', X_train.shape,  y_train.shape)
-print ('Test set:', X_test.shape,  y_test.shape)
-
-clf = tree.DecisionTreeClassifier(criterion="entropy", max_depth=15)
-clf = clf.fit(X_train, y_train)
+df['Pos'] = df['POSITION_CLUSTER'].apply(lambda x:MAPPING[x])
 
 
-print("Train set accuracy: ", round(metrics.f1_score(y_train, clf.predict(X_train), average = 'micro'), 5))
-print("Test set accuracy: ", round(metrics.f1_score(y_test, clf.predict(X_test), average = 'micro'), 5))
-# PLOTTING CONFUSION MATRIX
-# target_lithologys = []
-# labels = np.sort(y_test.unique())
-#
-# lithology_key = {100: 'Clay',
-#                  200: 'Siltstone/Loess',
-#                  300: 'Marl',
-#                  400: 'Clay marl',
-#                  500: 'Clay sandstone',
-#                  600: 'Sandstone',
-#                  700: 'Limestone',
-#                  800: 'Tight',
-#                  900: 'Dolomite',
-#                  1000: 'Coal',
-#                  1100: 'Coal clay',
-#                  1200: 'Marly sandstone',
-#                  1300: 'Sandy marl',
-#                  1400: 'Marl clay',
-#                  1500: 'Siltstone clay'
-#                   }
-#
-# for l_code in labels:
-#     lithology = lithology_key[l_code]
-#     target_lithologys.append(lithology)
-#
-# show_conf_matrix(y_predict, y_test, target_lithologys)
+for well_num in range(1, 2):
+    df_new = df[df['WELL'] != 'Well-' + str(well_num)]
+    df_rest = df[df['WELL'] == 'Well-' + str(well_num)]
+
+    feature_list = ['Pos', 'MD', 'GR', 'RT', 'DEN', 'CN', 'D_Env']
+
+    X_new = df_new[feature_list]
+    X_rest = df_rest[feature_list]
+
+    Y_new = df_new['LITH_CODE']
+    Y_rest = df_rest['LITH_CODE']
+
+    X_train, X_test, y_train, y_test = train_test_split(X_new, Y_new, test_size=0.2, random_state=10)
+    scaler = preprocessing.MaxAbsScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
+    X_validation = scaler.transform(X_rest)
+    y_validation = Y_rest
+
+    # lr_rates = [0.01, 0.05, 0.1, 0.2, 0.5, 0.75, 1.0]
+    # for lr in lr_rates:
+    #     clf = GradientBoostingClassifier(n_estimators=20, learning_rate=lr,
+    #                                      max_depth=5).fit(X_train, y_train)
+    #
+    #     print("Train set accuracy: ", round(metrics.f1_score(y_train, clf.predict(X_train), average = 'micro'), 5))
+    #     print("Test set accuracy: ", round(metrics.f1_score(y_test, clf.predict(X_test), average = 'micro'), 5))
+
+    # the best were lr = 0.2 and lr = 0.5
+    # best depth was 6
+
+    depths = [6, 7, 8, 9, 10]
+    for depth in depths:
+        clf = GradientBoostingClassifier(n_estimators=50, learning_rate=0.2, min_samples_split=300, min_samples_leaf=50,
+                                         max_depth=depth, subsample=0.8).fit(X_train, y_train)
+
+        print('Finished fitting')
+
+        print("Train set accuracy: ", round(metrics.f1_score(y_train, clf.predict(X_train), average='micro'), 5))
+        print("Test set accuracy: ", round(metrics.f1_score(y_test, clf.predict(X_test), average='micro'), 5))
+        print("Validation set accuracy: ", round(metrics.f1_score(y_validation, clf.predict(X_validation), average='micro'), 5))
+        print("Validation precission: ", round(metrics.precision_score(y_validation, clf.predict(X_validation), average='micro'), 5))
+        print("This was well number: " + str(well_num) + " and depth: " + str(depth), end='\n')
