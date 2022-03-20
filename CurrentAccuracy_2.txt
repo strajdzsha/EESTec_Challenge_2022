@@ -1,0 +1,60 @@
+Finished fitting
+Train set accuracy:  0.9988
+Test set accuracy:  0.98828
+Validation set accuracy:  0.86667
+Validation precission:  0.86667
+This was well number: 1and n_est: 50
+Finished fitting
+Train set accuracy:  0.99894
+Test set accuracy:  0.98707
+Validation set accuracy:  0.56322
+Validation precission:  0.56322
+This was well number: 3and n_est: 50
+Finished fitting
+Train set accuracy:  0.99879
+Test set accuracy:  0.98919
+Validation set accuracy:  0.57714
+Validation precission:  0.57714
+This was well number: 4and n_est: 50
+Finished fitting
+Train set accuracy:  0.99885
+Test set accuracy:  0.9896
+Validation set accuracy:  0.60666
+Validation precission:  0.60666
+This was well number: 5and n_est: 50
+Finished fitting
+Train set accuracy:  0.9986
+Test set accuracy:  0.9868
+Validation set accuracy:  0.57376
+Validation precission:  0.57376
+This was well number: 6and n_est: 50
+Finished fitting
+Train set accuracy:  0.99979
+Test set accuracy:  0.9918
+Validation set accuracy:  0.72488
+Validation precission:  0.72488
+This was well number: 7and n_est: 50
+Finished fitting
+Train set accuracy:  0.99873
+Test set accuracy:  0.98543
+Validation set accuracy:  0.71078
+Validation precission:  0.71078
+This was well number: 8and n_est: 50
+Finished fitting
+Train set accuracy:  0.99864
+Test set accuracy:  0.98882
+Validation set accuracy:  0.21925
+Validation precission:  0.21925
+This was well number: 9and n_est: 50
+Finished fitting
+Train set accuracy:  0.99896
+Test set accuracy:  0.98809
+Validation set accuracy:  0.74146
+Validation precission:  0.74146
+This was well number: 10and n_est: 50
+Finished fitting
+Train set accuracy:  0.99972
+Test set accuracy:  0.99073
+Validation set accuracy:  0.72638
+Validation precission:  0.72638
+This was well number: 11and n_est: 50
