@@ -9,11 +9,13 @@ from sklearn import metrics
 from sklearn.cluster import KMeans
 from sklearn.metrics import classification_report, confusion_matrix
 from joblib import dump, load
-from imblearn.over_sampling import RandomOverSampler
+from imblearn.over_sampling import RandomOverSampler, SMOTE
 import time
+
 start_time = time.time()
 
 import warnings
+
 warnings.filterwarnings("ignore")
 
 lithology_key = {100: 'Clay',
@@ -31,14 +33,14 @@ lithology_key = {100: 'Clay',
                  1300: 'Sandy marl',
                  1400: 'Marl clay',
                  1500: 'Siltstone clay'
-                  }
+                 }
 
 
 def despike(yi):
     y = np.copy(yi)
 
     mean = np.mean(y)
-    y[y > 5*mean] = 5*mean
+    y[y > 5 * mean] = 5 * mean
 
     return y
 
@@ -88,7 +90,6 @@ def show_conf_matrix(y_test, y_pred, classes, test_num):
 
 df = pd.read_csv('Train-dataset.csv')
 
-
 encodings = df.groupby('DEPOSITIONAL_ENVIRONMENT')['LITH_CODE'].mean().reset_index()
 list_encodings = encodings['LITH_CODE'].values
 MAPPING = {
@@ -97,11 +98,9 @@ MAPPING = {
     'Marine': list_encodings[2],
 }
 
-
 df['D_Env'] = df['DEPOSITIONAL_ENVIRONMENT'].apply(lambda x: MAPPING[x])
 
 df = addClusters(df)
-
 
 encodings = df.groupby('POSITION_CLUSTER')['LITH_CODE'].mean().reset_index()
 list_encodings = encodings['LITH_CODE'].values
@@ -111,8 +110,25 @@ MAPPING = {
     2: list_encodings[2],
 }
 
-df['Pos'] = df['POSITION_CLUSTER'].apply(lambda x:MAPPING[x])
-print(df['LITH_CODE'].value_counts())
+df['Pos'] = df['POSITION_CLUSTER'].apply(lambda x: MAPPING[x])
+
+sample_dic = {
+    600: 11572,
+    400: 8054,
+    100: 7716,
+    500: 6500,
+    1300: 5677,
+    1000: 3000,
+    300: 2000,
+    1200: 2000,
+    800: 2000,
+    1100: 1500,
+    1500: 1500,
+    1400: 1000,
+    200: 100
+}
+
+strategies = ['all', 'minority', 'not majority', 'not minority', sample_dic]
 
 for well_num in [1]:
     random_state = 500
@@ -121,14 +137,13 @@ for well_num in [1]:
 
     feature_list = ['Pos', 'MD', 'GR', 'RT', 'DEN', 'CN', 'D_Env']
 
-
     X_new = df_new[feature_list]
     X_rest = df_rest[feature_list]
 
     Y_new = df_new['LITH_CODE']
     Y_rest = df_rest['LITH_CODE']
 
-    ros = RandomOverSampler(random_state=random_state, sampling_strategy='not majority')
+    ros = RandomOverSampler(random_state=random_state, sampling_strategy='all')
     X_new, Y_new = ros.fit_resample(X_new, Y_new)
 
     X_train, X_test, y_train, y_test = train_test_split(X_new, Y_new, test_size=0.2, random_state=random_state)
@@ -146,29 +161,31 @@ for well_num in [1]:
         target_lithologys.append(lithology)
 
     # the best were lr = 0.2 and lr = 0.5
-    # best depth was 6
+    # best depth was 10
 
     lr_rates = [0.2]
     depths = [10]
     n_estimators_list = [50]
 
-    for n_est in n_estimators_list:
-        clf = GradientBoostingClassifier(n_estimators=n_est, learning_rate=0.2, min_samples_split=300, min_samples_leaf=50,
-                                         max_depth=10, subsample=0.8, random_state=random_state).fit(X_train, y_train)
+    for lr in lr_rates:
+        for max_depth in depths:
+            clf = GradientBoostingClassifier(n_estimators=50, learning_rate=lr, min_samples_split=300,
+                                             min_samples_leaf=50,
+                                             max_depth=max_depth, subsample=0.8, random_state=random_state).fit(X_train, y_train)
 
-        print('Finished fitting')
+            print('Finished fitting')
 
-        y_validation_pred = clf.predict(X_validation)
+            y_validation_pred = clf.predict(X_validation)
 
-        print("Train set accuracy: ", round(metrics.f1_score(y_train, clf.predict(X_train), average='micro'), 5))
-        print("Test set accuracy: ", round(metrics.f1_score(y_test, clf.predict(X_test), average='micro'), 5))
-        print("Validation set accuracy: ", round(metrics.f1_score(y_validation, clf.predict(X_validation), average='micro'), 5))
-        print("Validation precission: ", round(metrics.precision_score(y_validation, y_validation_pred, average='micro'), 5))
-        print("This was well number: " + str(well_num) + "and n_est: " + str(n_est), end='\n')
-        show_conf_matrix(y_validation, y_validation_pred, target_lithologys, test_num=well_num)
-        print(time.time() - start_time)
+            print("Train set accuracy: ", round(metrics.f1_score(y_train, clf.predict(X_train), average='micro'), 5))
+            print("Test set accuracy: ", round(metrics.f1_score(y_test, clf.predict(X_test), average='micro'), 5))
+            print("Validation set accuracy: ",
+                  round(metrics.f1_score(y_validation, clf.predict(X_validation), average='micro'), 5))
+            print("This was well number: " + str(well_num) + " and lr: " + str(lr) + ' and depth: ' + str(max_depth), end='\n')
+            #show_conf_matrix(y_validation, y_validation_pred, target_lithologys, test_num=well_num)
+            print(time.time() - start_time)
 
-        # if well_num == 1:
-        #     dump(clf, 'model.joblib')
-        #     dump(scaler, 'scaler.joblib')
-        print('FINISHED')
+            if well_num == 1:
+                dump(clf, 'model_new_1.joblib')
+                dump(scaler, 'scaler_new_1.joblib')
+            print('FINISHED')
