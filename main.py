@@ -9,6 +9,7 @@ from sklearn import metrics
 from sklearn.cluster import KMeans
 from sklearn.metrics import classification_report, confusion_matrix
 from joblib import dump, load
+from imblearn.over_sampling import RandomOverSampler
 import time
 start_time = time.time()
 
@@ -111,7 +112,7 @@ MAPPING = {
 }
 
 df['Pos'] = df['POSITION_CLUSTER'].apply(lambda x:MAPPING[x])
-
+print(df['LITH_CODE'].value_counts())
 
 for well_num in [1]:
     random_state = 500
@@ -120,11 +121,15 @@ for well_num in [1]:
 
     feature_list = ['Pos', 'MD', 'GR', 'RT', 'DEN', 'CN', 'D_Env']
 
+
     X_new = df_new[feature_list]
     X_rest = df_rest[feature_list]
 
     Y_new = df_new['LITH_CODE']
     Y_rest = df_rest['LITH_CODE']
+
+    ros = RandomOverSampler(random_state=random_state, sampling_strategy='not majority')
+    X_new, Y_new = ros.fit_resample(X_new, Y_new)
 
     X_train, X_test, y_train, y_test = train_test_split(X_new, Y_new, test_size=0.2, random_state=random_state)
     scaler = preprocessing.MaxAbsScaler()
@@ -143,28 +148,27 @@ for well_num in [1]:
     # the best were lr = 0.2 and lr = 0.5
     # best depth was 6
 
-    lr_rates = [0.05, 0.1, 0.2, 0.3, 0.4]
+    lr_rates = [0.2]
+    depths = [10]
+    n_estimators_list = [50]
 
-    depths = [6, 7, 8, 9, 10]
+    for n_est in n_estimators_list:
+        clf = GradientBoostingClassifier(n_estimators=n_est, learning_rate=0.2, min_samples_split=300, min_samples_leaf=50,
+                                         max_depth=10, subsample=0.8, random_state=random_state).fit(X_train, y_train)
 
-    for lr in lr_rates:
-        for depth in depths:
-            clf = GradientBoostingClassifier(n_estimators=50, learning_rate=lr, min_samples_split=300, min_samples_leaf=50,
-                                             max_depth=depth, subsample=0.8, random_state=random_state).fit(X_train, y_train)
+        print('Finished fitting')
 
-            print('Finished fitting')
+        y_validation_pred = clf.predict(X_validation)
 
-            y_validation_pred = clf.predict(X_validation)
+        print("Train set accuracy: ", round(metrics.f1_score(y_train, clf.predict(X_train), average='micro'), 5))
+        print("Test set accuracy: ", round(metrics.f1_score(y_test, clf.predict(X_test), average='micro'), 5))
+        print("Validation set accuracy: ", round(metrics.f1_score(y_validation, clf.predict(X_validation), average='micro'), 5))
+        print("Validation precission: ", round(metrics.precision_score(y_validation, y_validation_pred, average='micro'), 5))
+        print("This was well number: " + str(well_num) + "and n_est: " + str(n_est), end='\n')
+        show_conf_matrix(y_validation, y_validation_pred, target_lithologys, test_num=well_num)
+        print(time.time() - start_time)
 
-            print("Train set accuracy: ", round(metrics.f1_score(y_train, clf.predict(X_train), average='micro'), 5))
-            print("Test set accuracy: ", round(metrics.f1_score(y_test, clf.predict(X_test), average='micro'), 5))
-            print("Validation set accuracy: ", round(metrics.f1_score(y_validation, clf.predict(X_validation), average='micro'), 5))
-            print("Validation precission: ", round(metrics.precision_score(y_validation, y_validation_pred, average='micro'), 5))
-            print("This was well number: " + str(well_num) + " and depth: " + str(depth) + "and lr: " + str(lr), end='\n')
-            show_conf_matrix(y_validation, y_validation_pred, target_lithologys, test_num=well_num)
-            print(time.time() - start_time)
-
-            # if well_num == 1:
-            #     dump(clf, 'model.joblib')
-            #     dump(scaler, 'scaler.joblib')
-            print('FINISHED')
+        # if well_num == 1:
+        #     dump(clf, 'model.joblib')
+        #     dump(scaler, 'scaler.joblib')
+        print('FINISHED')
