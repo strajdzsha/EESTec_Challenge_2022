@@ -1,21 +1,45 @@
 from sklearn.ensemble import GradientBoostingClassifier
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
 from sklearn.model_selection import train_test_split
 from sklearn import preprocessing
 from sklearn import metrics
 from sklearn.cluster import KMeans
-from sklearn.model_selection import cross_val_score
 from sklearn.metrics import classification_report, confusion_matrix
-from sklearn import tree
-from imblearn.over_sampling import RandomOverSampler
-from sklearn.model_selection import cross_val_score
+from joblib import dump, load
+import time
+start_time = time.time()
 
 import warnings
+warnings.filterwarnings("ignore")
+
+lithology_key = {100: 'Clay',
+                 200: 'Siltstone/Loess',
+                 300: 'Marl',
+                 400: 'Clay marl',
+                 500: 'Clay sandstone',
+                 600: 'Sandstone',
+                 700: 'Limestone',
+                 800: 'Tight',
+                 900: 'Dolomite',
+                 1000: 'Coal',
+                 1100: 'Coal clay',
+                 1200: 'Marly sandstone',
+                 1300: 'Sandy marl',
+                 1400: 'Marl clay',
+                 1500: 'Siltstone clay'
+                  }
+
+
+def despike(yi):
+    y = np.copy(yi)
+
+    mean = np.mean(y)
+    y[y > 5*mean] = 5*mean
+
+    return y
 
 
 def addClusters(df):
@@ -36,6 +60,8 @@ def addClusters(df):
     k_means_labels = k_means.labels_
     k_means_cluster_centers = k_means.cluster_centers_
 
+    dump(k_means, 'k_means.joblib')
+
     df['POSITION_CLUSTER'] = np.nan
 
     for i, well in enumerate(wells):
@@ -45,7 +71,19 @@ def addClusters(df):
     return df
 
 
-warnings.filterwarnings("ignore")
+def show_conf_matrix(y_test, y_pred, classes, test_num):
+    # Calculate confusion matrix
+    conf = confusion_matrix(y_test, y_pred)
+
+    fig = plt.figure(figsize=(12, 12))
+    sns.set(font_scale=1)
+    sns.heatmap(conf, annot=True, annot_kws={"size": 16}, fmt="d", linewidths=.5, cmap="YlGnBu", xticklabels=classes,
+                yticklabels=classes)
+    plt.xlabel('Predicted value')
+    plt.ylabel('True value')
+
+    plt.savefig(str(test_num) + '.jpg')
+
 
 df = pd.read_csv('Train-dataset.csv')
 
@@ -58,12 +96,12 @@ MAPPING = {
     'Marine': list_encodings[2],
 }
 
-#ata = df.merge(encodings, how='left', on='DEPOSITIONAL_ENVIRONMENT')
-#df.drop('DEPOSITIONAL_ENVIRONMENT', axis=1, inplace=True)
 
 df['D_Env'] = df['DEPOSITIONAL_ENVIRONMENT'].apply(lambda x: MAPPING[x])
 
 df = addClusters(df)
+
+
 encodings = df.groupby('POSITION_CLUSTER')['LITH_CODE'].mean().reset_index()
 list_encodings = encodings['LITH_CODE'].values
 MAPPING = {
@@ -75,7 +113,8 @@ MAPPING = {
 df['Pos'] = df['POSITION_CLUSTER'].apply(lambda x:MAPPING[x])
 
 
-for well_num in range(1, 2):
+for well_num in [1]:
+    random_state = 500
     df_new = df[df['WELL'] != 'Well-' + str(well_num)]
     df_rest = df[df['WELL'] == 'Well-' + str(well_num)]
 
@@ -87,33 +126,45 @@ for well_num in range(1, 2):
     Y_new = df_new['LITH_CODE']
     Y_rest = df_rest['LITH_CODE']
 
-    X_train, X_test, y_train, y_test = train_test_split(X_new, Y_new, test_size=0.2, random_state=10)
+    X_train, X_test, y_train, y_test = train_test_split(X_new, Y_new, test_size=0.2, random_state=random_state)
     scaler = preprocessing.MaxAbsScaler()
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
     X_validation = scaler.transform(X_rest)
     y_validation = Y_rest
 
-    # lr_rates = [0.01, 0.05, 0.1, 0.2, 0.5, 0.75, 1.0]
-    # for lr in lr_rates:
-    #     clf = GradientBoostingClassifier(n_estimators=20, learning_rate=lr,
-    #                                      max_depth=5).fit(X_train, y_train)
-    #
-    #     print("Train set accuracy: ", round(metrics.f1_score(y_train, clf.predict(X_train), average = 'micro'), 5))
-    #     print("Test set accuracy: ", round(metrics.f1_score(y_test, clf.predict(X_test), average = 'micro'), 5))
+    target_lithologys = []
+    labels = np.sort(y_test.unique())
+
+    for l_code in labels:
+        lithology = lithology_key[l_code]
+        target_lithologys.append(lithology)
 
     # the best were lr = 0.2 and lr = 0.5
     # best depth was 6
 
+    lr_rates = [0.05, 0.1, 0.2, 0.3, 0.4]
+
     depths = [6, 7, 8, 9, 10]
-    for depth in depths:
-        clf = GradientBoostingClassifier(n_estimators=50, learning_rate=0.2, min_samples_split=300, min_samples_leaf=50,
-                                         max_depth=depth, subsample=0.8).fit(X_train, y_train)
 
-        print('Finished fitting')
+    for lr in lr_rates:
+        for depth in depths:
+            clf = GradientBoostingClassifier(n_estimators=50, learning_rate=lr, min_samples_split=300, min_samples_leaf=50,
+                                             max_depth=depth, subsample=0.8, random_state=random_state).fit(X_train, y_train)
 
-        print("Train set accuracy: ", round(metrics.f1_score(y_train, clf.predict(X_train), average='micro'), 5))
-        print("Test set accuracy: ", round(metrics.f1_score(y_test, clf.predict(X_test), average='micro'), 5))
-        print("Validation set accuracy: ", round(metrics.f1_score(y_validation, clf.predict(X_validation), average='micro'), 5))
-        print("Validation precission: ", round(metrics.precision_score(y_validation, clf.predict(X_validation), average='micro'), 5))
-        print("This was well number: " + str(well_num) + " and depth: " + str(depth), end='\n')
+            print('Finished fitting')
+
+            y_validation_pred = clf.predict(X_validation)
+
+            print("Train set accuracy: ", round(metrics.f1_score(y_train, clf.predict(X_train), average='micro'), 5))
+            print("Test set accuracy: ", round(metrics.f1_score(y_test, clf.predict(X_test), average='micro'), 5))
+            print("Validation set accuracy: ", round(metrics.f1_score(y_validation, clf.predict(X_validation), average='micro'), 5))
+            print("Validation precission: ", round(metrics.precision_score(y_validation, y_validation_pred, average='micro'), 5))
+            print("This was well number: " + str(well_num) + " and depth: " + str(depth) + "and lr: " + str(lr), end='\n')
+            show_conf_matrix(y_validation, y_validation_pred, target_lithologys, test_num=well_num)
+            print(time.time() - start_time)
+
+            # if well_num == 1:
+            #     dump(clf, 'model.joblib')
+            #     dump(scaler, 'scaler.joblib')
+            print('FINISHED')
